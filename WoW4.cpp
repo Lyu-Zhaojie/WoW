@@ -16,6 +16,8 @@ constexpr weapon SWORD{0}, BOMB{1}, ARROW{2};
 
 constexpr char WARRIOR_NAME[5][8]{"dragon", "ninja", "iceman", "lion", "wolf"};
 constexpr char HEAD_NAME[2][8]{"red", "blue"};
+
+int element{0}, nCity{0}, loyaltyStep{0}, timeLimit{0};
 int INIT_ELEMENT[5]{0}, INIT_FORCE[5]{0};
 int ARROW_FORCE{};
 
@@ -163,7 +165,8 @@ public:
     virtual void lionEscape();
     void generateElement() { mElement += 10; }
     int getID() const { return mID; }
-    BasicWarrior *getWarriorPtr(Flag flag) { return mWarriorPtr[flag]; }
+    void useArrow();
+    virtual BasicWarrior *getWarriorPtr(Flag flag) { return mWarriorPtr[flag]; }
 };
 class Command : public City
 {
@@ -181,11 +184,71 @@ public:
     Flag getHead() const { return mFlag; }
     void addElement(int element) { mElement += element; }
     void reportElement();
+    BasicWarrior *getWarriorPtr(Flag flag) override { return nullptr; }
 };
 
 int main()
 {
+    int n{};
+    cin >> n;
+    for (int i{}; i < n; i++)
+    {
+        cin >> element >> nCity >> ARROW_FORCE >> loyaltyStep >> timeLimit;
+        cin >> INIT_ELEMENT[0] >> INIT_ELEMENT[1] >> INIT_ELEMENT[2] >> INIT_ELEMENT[3] >> INIT_ELEMENT[4];
+        cin >> INIT_FORCE[0] >> INIT_FORCE[1] >> INIT_FORCE[2] >> INIT_FORCE[3] >> INIT_FORCE[4];
 
+        City *cityList{new City[nCity + 1]};
+        Command redCommand(RED, element, nullptr, cityList + 1), blueCommand(BLUE, element, cityList + nCity, nullptr);
+
+        cityList[1] = City(1, &redCommand, cityList + 2);
+        cityList[nCity] = City(n, cityList + n - 1, &blueCommand);
+        for (int j{2}; j < nCity; j++)
+            cityList[j] = City(j, cityList + j - 1, cityList + j + 1);
+
+        cout << "Case " << i + 1 << ':' << endl;
+        for (globalMinute = 0; globalMinute <= timeLimit; globalMinute++)
+        {
+            switch (globalMinute % 60)
+            {
+            case 0:
+                redCommand.generate();
+                blueCommand.generate();
+                break;
+            case 5:
+                redCommand.lionEscape();
+                for (int j{1}; j <= nCity; j++)
+                    cityList[j].lionEscape();
+                break;
+            case 10:
+                // TODO: match
+                break;
+            case 20:
+                for (int j{1}; j <= nCity; j++)
+                    cityList[j].generateElement();
+                break;
+            case 30:
+                for (int j{1}; j <= nCity; j++)
+                    cityList[j].letWarriorGetElement();
+                break;
+            case 35:
+                for (int j{1}; j <= nCity; j++)
+                    cityList[j].useArrow();
+                break;
+            case 38:
+                // TODO: Bomb
+                break;
+            case 40:
+                // TODO: Fight
+                break;
+            case 50:
+                redCommand.reportElement();
+                blueCommand.reportElement();
+                break;
+            case 55:
+                // TODO: report weapon
+            }
+        }
+    }
     return 0;
 }
 
@@ -333,6 +396,14 @@ void City::letWarriorGetElement()
         mWarriorPtr[BLUE]->sendElement(mElement);
         mElement = 0;
     }
+}
+
+void City::useArrow()
+{
+    if (mWarriorPtr[RED])
+        mWarriorPtr[RED]->useArrow(mEastCity);
+    if (mWarriorPtr[BLUE])
+        mWarriorPtr[BLUE]->useArrow(mWestCity);
 }
 
 void Command::lionEscape()
