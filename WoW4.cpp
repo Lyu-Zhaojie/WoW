@@ -1,9 +1,5 @@
 #include <iomanip>
-#include <ios>
 #include <iostream>
-#include <tuple>
-#include <vector>
-#include <wchar.h>
 using namespace std;
 
 typedef int Type;
