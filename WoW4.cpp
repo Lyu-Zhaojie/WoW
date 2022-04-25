@@ -71,10 +71,11 @@ public:
     void useArrow(City *nextCity);
     void attack(BasicWarrior *enemy, int cityID);
     void beAttacked(int damage) { mElement -= damage; }
-    virtual void foughtBack(BasicWarrior *enemy);
+    virtual void foughtBack(BasicWarrior *enemy, int cityID);
 
     void sendElement(int element);
     virtual void beforeMove() {}
+    void move(int cityIndex);
     void reportWeapon();
 
     bool isAlive() const { return mElement > 0; }
@@ -93,7 +94,7 @@ public:
         : BasicWarrior(id, head, DRAGON, INIT_ELEMENT[DRAGON], INIT_FORCE[DRAGON], id % 3),
           mMorale{morale}
     {
-        cout << "Its morale " << setiosflags(ios::fixed) << setprecision(2) << mMorale << endl;
+        cout << "Its morale is " << setiosflags(ios::fixed) << setprecision(2) << mMorale << endl;
     }
     void yell() override;
 };
@@ -102,7 +103,7 @@ class Ninja : public BasicWarrior
 public:
     Ninja(int id, Command *head)
         : BasicWarrior(id, head, NINJA, INIT_ELEMENT[NINJA], INIT_FORCE[NINJA], id % 3, (id + 1) % 3) {}
-    void foughtBack(BasicWarrior *enemy) override {}
+    void foughtBack(BasicWarrior *enemy, int cityID) override {}
 };
 class Iceman : public BasicWarrior
 {
@@ -167,6 +168,10 @@ public:
     int getID() const { return mID; }
     void useArrow();
     virtual BasicWarrior *getWarriorPtr(Flag flag) { return mWarriorPtr[flag]; }
+    void fight();
+    virtual void setPtr();
+    void report(Flag flag);
+    friend void Move(City &westCity, City &eastCity);
 };
 class Command : public City
 {
@@ -198,10 +203,11 @@ int main()
         cin >> INIT_FORCE[0] >> INIT_FORCE[1] >> INIT_FORCE[2] >> INIT_FORCE[3] >> INIT_FORCE[4];
 
         City *cityList{new City[nCity + 1]};
-        Command redCommand(RED, element, nullptr, cityList + 1), blueCommand(BLUE, element, cityList + nCity, nullptr);
+        Command redCommand(RED, element, nullptr, cityList + 1);
+        Command blueCommand(BLUE, element, cityList + nCity, nullptr);
 
         cityList[1] = City(1, &redCommand, cityList + 2);
-        cityList[nCity] = City(n, cityList + n - 1, &blueCommand);
+        cityList[nCity] = City(nCity, cityList + nCity - 1, &blueCommand);
         for (int j{2}; j < nCity; j++)
             cityList[j] = City(j, cityList + j - 1, cityList + j + 1);
 
@@ -220,7 +226,14 @@ int main()
                     cityList[j].lionEscape();
                 break;
             case 10:
-                // TODO: match
+                Move(redCommand, cityList[1]);
+                for (int j{1}; j < nCity; j++)
+                    Move(cityList[j], cityList[j + 1]);
+                Move(cityList[nCity], blueCommand);
+                redCommand.setPtr();
+                for (int j{1}; j <= nCity; j++)
+                    cityList[j].setPtr();
+                blueCommand.setPtr();
                 break;
             case 20:
                 for (int j{1}; j <= nCity; j++)
@@ -231,23 +244,41 @@ int main()
                     cityList[j].letWarriorGetElement();
                 break;
             case 35:
+                redCommand.useArrow();
                 for (int j{1}; j <= nCity; j++)
+                {
                     cityList[j].useArrow();
+                    // cout << globalMinute;
+                }
+                blueCommand.useArrow();
                 break;
             case 38:
                 // TODO: Bomb
                 break;
             case 40:
-                // TODO: Fight
+                for (int j{1}; j <= nCity; j++)
+                    cityList[j].fight();
                 break;
             case 50:
                 redCommand.reportElement();
                 blueCommand.reportElement();
                 break;
             case 55:
-                // TODO: report weapon
+                redCommand.report(RED);
+                for (int j{1}; j <= nCity; j++)
+                    cityList[j].report(RED);
+                blueCommand.report(RED);
+                redCommand.report(BLUE);
+                for (int j{1}; j <= nCity; j++)
+                    cityList[j].report(BLUE);
+                blueCommand.report(BLUE);
+                break;
+            default:
+                // cout << globalMinute << endl;
+                break;
             }
         }
+        delete[] cityList;
     }
     return 0;
 }
@@ -257,7 +288,7 @@ BasicWarrior::WeaponList::WeaponList(int weapon1, int weapon2, int warriorForce)
     switch (weapon1)
     {
     case SWORD:
-        mSword = warriorForce * 8 / 10;
+        mSword = warriorForce * 2 / 10;
         break;
     case BOMB:
         mBomb = 1;
@@ -285,18 +316,25 @@ BasicWarrior::WeaponList::WeaponList(int weapon1, int weapon2, int warriorForce)
 }
 
 BasicWarrior::BasicWarrior(int id, Command *head, Type type, int element, int force, int weapon1, int weapon2)
-    : weaponList(weapon1, weapon2, mForce),
-      mID{id},
+    : mID{id},
       mCommand{head}, mFlag{mCommand->getHead()},
-      mType{type}, mElement{element}, mForce{force}
+      mType{type}, mElement{element}, mForce{force},
+      weaponList(weapon1, weapon2, mForce)
 {
     showTime();
     cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID << " born" << endl;
 }
 
+void BasicWarrior::move(int cityIndex)
+{
+    beforeMove();
+    showTime();
+    cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID << " marched to city " << cityIndex << " with " << mElement << " elements and force " << mForce << endl;
+}
+
 void BasicWarrior::useBomb(BasicWarrior *enemy)
 {
-    bool judge; // TODO: judge whether use bomb or not.
+    bool judge{false}; // TODO: judge whether use bomb or not.
     if (judge)
     {
         beAttacked(mElement);
@@ -307,7 +345,7 @@ void BasicWarrior::useBomb(BasicWarrior *enemy)
 }
 void BasicWarrior::useArrow(City *nextCity)
 {
-    if (nextCity && weaponList.hasArrow())
+    if (weaponList.hasArrow() && nextCity && nextCity->getWarriorPtr(mFlag ^ 1))
     {
         BasicWarrior *enemy{nextCity->getWarriorPtr(mFlag ^ 1)};
         enemy->beAttacked(ARROW_FORCE);
@@ -326,17 +364,23 @@ void BasicWarrior::attack(BasicWarrior *enemy, int cityID)
          << " attacked "
          << HEAD_NAME[enemy->mFlag] << ' ' << WARRIOR_NAME[enemy->mType] << ' ' << enemy->mID
          << " in city " << cityID
-         << " with " << mElement << " elements and force " << mForce;
+         << " with " << mElement << " elements and force " << mForce << endl;
     enemy->beAttacked(getDamage());
     if (weaponList.hasSword())
         weaponList.useSword();
 }
-void BasicWarrior::foughtBack(BasicWarrior *enemy)
+void BasicWarrior::foughtBack(BasicWarrior *enemy, int cityID)
 {
-    if (isAlive())
-        enemy->beAttacked(getBackDamage());
+    enemy->beAttacked(getBackDamage());
+    showTime();
+    cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID << " fought back against " << HEAD_NAME[enemy->mFlag] << ' ' << WARRIOR_NAME[enemy->mType] << ' ' << enemy->mID << " in city " << cityID << endl;
 }
-void BasicWarrior::sendElement(int element) { mCommand->addElement(element); }
+void BasicWarrior::sendElement(int element)
+{
+    mCommand->addElement(element);
+    showTime();
+    cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID << " earned " << element << " elements for his headquarter" << endl;
+}
 void BasicWarrior::reportWeapon()
 {
     showTime();
@@ -345,12 +389,28 @@ void BasicWarrior::reportWeapon()
         cout << "no weapon" << endl;
     else
     {
+        bool withComma{false};
         if (weaponList.hasArrow())
+        {
+            if (withComma)
+                cout << ',';
             cout << "arrow(" << weaponList.getArrowNum() << ')';
+            withComma = true;
+        }
         if (weaponList.hasBomb())
+        {
+            if (withComma)
+                cout << ',';
             cout << "bomb";
+            withComma = true;
+        }
         if (weaponList.hasSword())
+        {
+            if (withComma)
+                cout << ',';
             cout << "sword(" << weaponList.getSwordForce() << ')';
+            withComma = true;
+        }
         cout << endl;
     }
 }
@@ -358,6 +418,7 @@ void Dragon::yell() {}
 
 void Iceman::beforeMove()
 {
+    moveTimes++;
     if (moveTimes == 2)
     {
         if (mElement <= 9)
@@ -367,8 +428,6 @@ void Iceman::beforeMove()
         mForce += 20;
         moveTimes = 0;
     }
-    else
-        moveTimes++;
 }
 
 void City::lionEscape()
@@ -400,10 +459,43 @@ void City::letWarriorGetElement()
 
 void City::useArrow()
 {
-    if (mWarriorPtr[RED])
+    if (mWarriorPtr[RED] && mEastCity)
         mWarriorPtr[RED]->useArrow(mEastCity);
-    if (mWarriorPtr[BLUE])
+    if (mWarriorPtr[BLUE] && mWestCity)
         mWarriorPtr[BLUE]->useArrow(mWestCity);
+}
+void City::fight()
+{
+    if (mWarriorPtr[RED] && mWarriorPtr[BLUE])
+    {
+        if ((mID & 1 && mFlag == NONE) || mFlag == RED)
+        {
+            mWarriorPtr[RED]->attack(mWarriorPtr[BLUE], mID);
+            if (mWarriorPtr[BLUE]->isAlive())
+                mWarriorPtr[BLUE]->foughtBack(mWarriorPtr[RED], mID);
+        }
+        else if (((mID & 1) == 0 && mFlag == NONE) || mFlag == BLUE)
+        {
+            mWarriorPtr[BLUE]->attack(mWarriorPtr[RED], mID);
+            if (mWarriorPtr[RED]->isAlive())
+                mWarriorPtr[RED]->foughtBack(mWarriorPtr[BLUE], mID);
+        }
+    }
+}
+void City::setPtr()
+{
+    for (Flag i : {RED, BLUE})
+    {
+        mWarriorPtr[i] = tmpWarriorPtr[i];
+        tmpWarriorPtr[i] = nullptr;
+        if (mWarriorPtr[i])
+            mWarriorPtr[i]->move(mID);
+    }
+}
+void City::report(Flag flag)
+{
+    if (mWarriorPtr[flag])
+        mWarriorPtr[flag]->reportWeapon();
 }
 
 void Command::lionEscape()
@@ -441,11 +533,18 @@ void Command::generate()
             mWarriorPtr[mFlag] = new Wolf(nOfWarrior, this);
             break;
         }
-        generateIndex = generateType == 4 ? 0 : generateType + 1;
+        generateIndex = generateIndex == 4 ? 0 : generateIndex + 1;
     }
 }
 void Command::reportElement()
 {
     showTime();
-    cout << mElement << " in " << HEAD_NAME[mFlag] << " headquarter" << endl;
+    cout << mElement << " elements in " << HEAD_NAME[mFlag] << " headquarter" << endl;
+}
+void Move(City &westCity, City &eastCity)
+{
+    eastCity.tmpWarriorPtr[RED] = westCity.mWarriorPtr[RED];
+    westCity.mWarriorPtr[RED] = nullptr;
+    westCity.tmpWarriorPtr[BLUE] = eastCity.mWarriorPtr[BLUE];
+    eastCity.mWarriorPtr[BLUE] = nullptr;
 }

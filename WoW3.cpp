@@ -484,9 +484,9 @@ int main()
         cin >> FORCE[0] >> FORCE[1] >> FORCE[2] >> FORCE[3] >> FORCE[4];
         cout << "Case " << i + 1 << ':' << endl;
         Command redCommand(0, RED, element), blueCommand(nCity + 1, BLUE, element);
-        City *cites = new City[nCity + 1];
+        City *cities = new City[nCity + 1];
         for (int j{1}; j <= nCity; j++)
-            cites[j] = City(j);
+            cities[j] = City(j);
         for (globalMin = 0; globalMin <= timeLimit; globalMin += 5)
         {
             switch (globalMin % 60)
@@ -498,14 +498,14 @@ int main()
             case 5:
                 redCommand.lionEscape();
                 for (int j{1}; j <= nCity; j++)
-                    cites[j].lionEscape();
+                    cities[j].lionEscape();
                 blueCommand.lionEscape();
                 break;
             case 10:
-                Move(redCommand, cites[1]);
+                Move(redCommand, cities[1]);
                 for (int j{1}; j < nCity; j++)
-                    Move(cites[j], cites[j + 1]);
-                Move(cites[nCity], blueCommand);
+                    Move(cities[j], cities[j + 1]);
+                Move(cities[nCity], blueCommand);
                 redCommand.setPtr();
                 if (redCommand.isOccupied())
                 {
@@ -513,7 +513,7 @@ int main()
                     cout << "red headquarter was taken" << endl;
                 }
                 for (int j{1}; j <= nCity; j++)
-                    cites[j].setPtr();
+                    cities[j].setPtr();
                 blueCommand.setPtr();
                 if (blueCommand.isOccupied())
                 {
@@ -525,11 +525,11 @@ int main()
                 break;
             case 35:
                 for (int j{1}; j <= nCity; j++)
-                    cites[j].wolfSteal();
+                    cities[j].wolfSteal();
                 break;
             case 40:
                 for (int j{1}; j <= nCity; j++)
-                    cites[j].war();
+                    cities[j].war();
                 break;
             case 50:
                 redCommand.report();
@@ -537,15 +537,15 @@ int main()
                 break;
             case 55:
                 for (int j{1}; j <= nCity; j++)
-                    cites[j].reportWeapon();
+                    cities[j].reportWeapon();
                 break;
             default:
                 break;
             }
         }
     endWar:
-        delete[] cites;
-        cites = nullptr;
+        delete[] cities;
+        cities = nullptr;
     }
 }
 void Command::generate()
