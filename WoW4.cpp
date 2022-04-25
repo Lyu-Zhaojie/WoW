@@ -28,9 +28,9 @@ enum class WarState
 int globalMinute{};
 void showTime()
 {
-    cout << setw(3) << setfill('0') << globalMinute / 60 // 小时
+    cout << setw(3) << setfill('0') << globalMinute / 60
          << ':'
-         << setw(2) << setfill('0') << globalMinute % 60 << ' '; // 分钟
+         << setw(2) << setfill('0') << globalMinute % 60 << ' ';
 }
 
 class City;
@@ -75,7 +75,7 @@ public:
     int getDamage() const { return mForce + weaponList.getSwordForce(); }
     virtual int getBackDamage() const { return mForce / 2 + weaponList.getSwordForce(); }
 
-    virtual void yell(int cityID) {} // For Dragon
+    virtual void yell(int cityID) {}
 
     void useBomb(BasicWarrior *enemy, City *city);
     void useArrow(City *nextCity);
@@ -114,7 +114,6 @@ public:
         cout << "Its morale is " << setiosflags(ios::fixed) << setprecision(2) << mMorale << endl;
     }
     void yell(int cityID) override;
-    // void lessLoyalty() override { mMorale -= 0.2; }
 };
 class Ninja : public BasicWarrior
 {
@@ -201,7 +200,6 @@ public:
 class Command : public City
 {
 private:
-    // vector<BasicWarrior *> warriorList;
     int generateIndex;
     int nOfWarrior;
     int tmpElement;
