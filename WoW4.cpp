@@ -21,6 +21,13 @@ int element{0}, nCity{0}, loyaltyStep{0}, timeLimit{0};
 int INIT_ELEMENT[5]{0}, INIT_FORCE[5]{0};
 int ARROW_FORCE{};
 
+enum class WarState
+{
+    NONE,
+    WIN,
+    DRAW
+};
+
 int globalMinute{};
 void showTime()
 {
@@ -40,6 +47,7 @@ protected:
     Flag mFlag;
     Type mType;
     int mElement, mForce;
+    WarState mWarState;
     class WeaponList
     {
     private:
@@ -72,6 +80,8 @@ public:
     void attack(BasicWarrior *enemy, int cityID);
     void beAttacked(int damage) { mElement -= damage; }
     virtual void foughtBack(BasicWarrior *enemy, int cityID);
+    void addElement(int prize) { mElement += prize; }
+    void setWarState(WarState state) { mWarState = state; }
 
     void sendElement(int element);
     virtual void beforeMove() {}
@@ -83,6 +93,7 @@ public:
 
     Type getType() const { return mType; }
     int getID() const { return mID; }
+    int getElement() const { return mElement; }
 };
 class Dragon : public BasicWarrior
 {
@@ -144,6 +155,7 @@ protected:
     City *mWestCity, *mEastCity;
     int mElement;
     Flag mFlag;
+    int mWinTimes[2];
 
 public:
     City() : mWarriorPtr{nullptr, nullptr}, tmpWarriorPtr{nullptr, nullptr},
@@ -151,7 +163,7 @@ public:
     City(int id, City *westCity, City *eastCity, int element = 0, Flag flag = NONE)
         : mID{id},
           mWarriorPtr{nullptr, nullptr}, tmpWarriorPtr{nullptr, nullptr},
-          mWestCity{westCity}, mEastCity{eastCity}, mElement{element}, mFlag{flag} {}
+          mWestCity{westCity}, mEastCity{eastCity}, mElement{element}, mFlag{flag}, mWinTimes{0, 0} {}
     ~City()
     {
         for (Flag i : {RED, BLUE})
@@ -171,6 +183,7 @@ public:
     void fight();
     virtual void setPtr();
     void report(Flag flag);
+    Flag priority();
     friend void Move(City &westCity, City &eastCity);
 };
 class Command : public City
@@ -179,15 +192,21 @@ private:
     // vector<BasicWarrior *> warriorList;
     int generateIndex;
     int nOfWarrior;
+    int tmpElement;
 
 public:
     Command(Flag flag, int element, City *westCity, City *eastCity)
         : City(-1, westCity, eastCity, element, flag),
-          generateIndex{0}, nOfWarrior{0} {}
+          generateIndex{0}, nOfWarrior{0}, tmpElement{0} {}
     void lionEscape() override;
     void generate();
     Flag getHead() const { return mFlag; }
-    void addElement(int element) { mElement += element; }
+    void addElement(int element) { tmpElement += element; }
+    void freshElement()
+    {
+        mElement += tmpElement;
+        tmpElement = 0;
+    }
     void reportElement();
     BasicWarrior *getWarriorPtr(Flag flag) override { return nullptr; }
 };
@@ -246,10 +265,7 @@ int main()
             case 35:
                 redCommand.useArrow();
                 for (int j{1}; j <= nCity; j++)
-                {
                     cityList[j].useArrow();
-                    // cout << globalMinute;
-                }
                 blueCommand.useArrow();
                 break;
             case 38:
@@ -318,7 +334,7 @@ BasicWarrior::WeaponList::WeaponList(int weapon1, int weapon2, int warriorForce)
 BasicWarrior::BasicWarrior(int id, Command *head, Type type, int element, int force, int weapon1, int weapon2)
     : mID{id},
       mCommand{head}, mFlag{mCommand->getHead()},
-      mType{type}, mElement{element}, mForce{force},
+      mType{type}, mElement{element}, mForce{force}, mWarState{WarState::NONE},
       weaponList(weapon1, weapon2, mForce)
 {
     showTime();
@@ -466,19 +482,55 @@ void City::useArrow()
 }
 void City::fight()
 {
+    for (Flag i : {RED, BLUE})
+    {
+        if (mWarriorPtr[i] && !mWarriorPtr[i]->isAlive())
+        {
+            delete mWarriorPtr[i];
+            mWarriorPtr[i] = nullptr;
+        }
+    }
     if (mWarriorPtr[RED] && mWarriorPtr[BLUE])
     {
-        if ((mID & 1 && mFlag == NONE) || mFlag == RED)
+        int element[2]{mWarriorPtr[RED]->getElement(), mWarriorPtr[BLUE]->getElement()};
+        Flag pri{priority()};
+        mWarriorPtr[pri]->attack(mWarriorPtr[pri ^ 1], mID);
+        if (mWarriorPtr[pri ^ 1]->isAlive())
+            mWarriorPtr[pri ^ 1]->foughtBack(mWarriorPtr[pri], mID);
+
+        if (mWarriorPtr[RED]->isAlive() && mWarriorPtr[BLUE]->isAlive())
         {
-            mWarriorPtr[RED]->attack(mWarriorPtr[BLUE], mID);
-            if (mWarriorPtr[BLUE]->isAlive())
-                mWarriorPtr[BLUE]->foughtBack(mWarriorPtr[RED], mID);
+            mWarriorPtr[RED]->setWarState(WarState::DRAW);
+            mWarriorPtr[BLUE]->setWarState(WarState::DRAW);
+            mWinTimes[RED] = 0;
+            mWinTimes[BLUE] = 0;
         }
-        else if (((mID & 1) == 0 && mFlag == NONE) || mFlag == BLUE)
+        else
         {
-            mWarriorPtr[BLUE]->attack(mWarriorPtr[RED], mID);
-            if (mWarriorPtr[RED]->isAlive())
-                mWarriorPtr[RED]->foughtBack(mWarriorPtr[BLUE], mID);
+            for (Flag i : {RED, BLUE})
+            {
+                if (!mWarriorPtr[i]->isAlive())
+                {
+                    showTime();
+                    cout << HEAD_NAME[i] << ' ' << WARRIOR_NAME[mWarriorPtr[i]->getType()] << ' ' << mWarriorPtr[i]->getID() << " was killed in city " << mID << endl;
+                    mWarriorPtr[i ^ 1]->setWarState(WarState::WIN);
+                    if (mWarriorPtr[i]->getType() == LION)
+                        mWarriorPtr[i ^ 1]->addElement(element[i]);
+                    delete mWarriorPtr[i];
+                    mWarriorPtr[i] = nullptr;
+                    mWarriorPtr[i ^ 1]->sendElement(mElement);
+                    mElement = 0;
+                    mWinTimes[i] = 0;
+                    mWinTimes[i ^ 1]++;
+                    if (mWinTimes[i ^ 1] == 2)
+                    {
+                        mFlag = i ^ 1;
+                        showTime();
+                        cout << HEAD_NAME[mFlag] << " flag raised in city " << mID << endl;
+                    }
+                    break;
+                }
+            }
         }
     }
 }
@@ -496,6 +548,13 @@ void City::report(Flag flag)
 {
     if (mWarriorPtr[flag])
         mWarriorPtr[flag]->reportWeapon();
+}
+Flag City::priority()
+{
+    if (mFlag != NONE)
+        return mFlag;
+    else
+        return mID & 1 ? RED : BLUE;
 }
 
 void Command::lionEscape()
