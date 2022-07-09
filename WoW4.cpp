@@ -1,5 +1,6 @@
 #include <iomanip>
 #include <iostream>
+
 using namespace std;
 
 typedef int Type;
@@ -16,7 +17,7 @@ constexpr char HEAD_NAME[2][8]{"red", "blue"};
 
 int element{0}, nCity{0}, loyaltyStep{0}, timeLimit{0};
 int INIT_ELEMENT[5]{0}, INIT_FORCE[5]{0};
-int ARROW_FORCE{};
+int ARROW_FORCE{0};
 
 enum class WarState
 {
@@ -25,7 +26,7 @@ enum class WarState
     DRAW
 };
 
-int globalMinute{};
+int globalMinute{0};
 void showTime()
 {
     cout << setw(3) << setfill('0') << globalMinute / 60
@@ -100,6 +101,8 @@ public:
     Type getType() const { return mType; }
     int getID() const { return mID; }
     int getElement() const { return mElement; }
+
+    friend ostream &operator<<(ostream &os, const BasicWarrior &warrior);
 };
 class Dragon : public BasicWarrior
 {
@@ -227,9 +230,9 @@ public:
 
 int main()
 {
-    int n{};
+    int n{0};
     cin >> n;
-    for (int i{}; i < n; i++)
+    for (int i{0}; i < n; i++)
     {
         cin >> element >> nCity >> ARROW_FORCE >> loyaltyStep >> timeLimit;
         cin >> INIT_ELEMENT[0] >> INIT_ELEMENT[1] >> INIT_ELEMENT[2] >> INIT_ELEMENT[3] >> INIT_ELEMENT[4];
@@ -373,21 +376,21 @@ BasicWarrior::BasicWarrior(int id, Command *head, Type type, int element, int fo
       weaponList(weapon1, weapon2, mForce)
 {
     showTime();
-    cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID << " born" << endl;
+    cout << *this << " born" << endl;
 }
 void BasicWarrior::move(int cityIndex)
 {
     mWarState = WarState::NONE;
     beforeMove();
     showTime();
-    cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID << " marched to city " << cityIndex << " with " << mElement << " elements and force " << mForce << endl;
+    cout << *this << " marched to city " << cityIndex << " with " << mElement << " elements and force " << mForce << endl;
 }
 void BasicWarrior::moveToCommand()
 {
     mWarState = WarState::NONE;
     beforeMove();
     showTime();
-    cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID << " reached " << HEAD_NAME[mFlag ^ 1] << " headquarter with " << mElement << " elements and force " << mForce << endl;
+    cout << *this << " reached " << HEAD_NAME[mFlag ^ 1] << " headquarter with " << mElement << " elements and force " << mForce << endl;
 }
 void BasicWarrior::useBomb(BasicWarrior *enemy, City *city)
 {
@@ -406,7 +409,7 @@ void BasicWarrior::useBomb(BasicWarrior *enemy, City *city)
         beAttacked(mElement);
         enemy->beAttacked(enemy->mElement);
         showTime();
-        cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID << " used a bomb and killed " << HEAD_NAME[enemy->mFlag] << ' ' << WARRIOR_NAME[enemy->mType] << ' ' << enemy->mID << endl;
+        cout << *this << " used a bomb and killed " << *enemy << endl;
     }
 }
 void BasicWarrior::useArrow(City *nextCity)
@@ -418,10 +421,10 @@ void BasicWarrior::useArrow(City *nextCity)
         weaponList.useArrow();
         showTime();
         if (enemy->isAlive())
-            cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID << " shot" << endl;
+            cout << *this << " shot" << endl;
         else
         {
-            cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID << " shot and killed " << HEAD_NAME[enemy->mFlag] << ' ' << WARRIOR_NAME[enemy->mType] << ' ' << enemy->mID << endl;
+            cout << *this << " shot and killed " << *enemy << endl;
             enemy->mIsKilledByArrow = true;
         }
     }
@@ -429,9 +432,9 @@ void BasicWarrior::useArrow(City *nextCity)
 void BasicWarrior::attack(BasicWarrior *enemy, int cityID)
 {
     showTime();
-    cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID
+    cout << *this
          << " attacked "
-         << HEAD_NAME[enemy->mFlag] << ' ' << WARRIOR_NAME[enemy->mType] << ' ' << enemy->mID
+         << *enemy
          << " in city " << cityID
          << " with " << mElement << " elements and force " << mForce << endl;
     enemy->beAttacked(getDamage());
@@ -441,7 +444,7 @@ void BasicWarrior::attack(BasicWarrior *enemy, int cityID)
 void BasicWarrior::foughtBack(BasicWarrior *enemy, int cityID)
 {
     showTime();
-    cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID << " fought back against " << HEAD_NAME[enemy->mFlag] << ' ' << WARRIOR_NAME[enemy->mType] << ' ' << enemy->mID << " in city " << cityID << endl;
+    cout << *this << " fought back against " << *enemy << " in city " << cityID << endl;
     enemy->beAttacked(getBackDamage());
     if (weaponList.hasSword())
         weaponList.useSword();
@@ -450,12 +453,12 @@ void BasicWarrior::sendElement(int element)
 {
     mCommand->addElement(element);
     showTime();
-    cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID << " earned " << element << " elements for his headquarter" << endl;
+    cout << *this << " earned " << element << " elements for his headquarter" << endl;
 }
 void BasicWarrior::reportWeapon()
 {
     showTime();
-    cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID << " has ";
+    cout << *this << " has ";
     if (!weaponList.hasWeapon())
         cout << "no weapon" << endl;
     else
@@ -491,6 +494,12 @@ void BasicWarrior::prizeSelf()
         mCommand->prize(this);
 }
 
+ostream &operator<<(ostream &os, const BasicWarrior &warrior)
+{
+    os << HEAD_NAME[warrior.mFlag] << ' ' << WARRIOR_NAME[warrior.mType] << ' ' << warrior.mID;
+    return os;
+}
+
 void Dragon::yell(int cityID)
 {
     if (mWarState == WarState::WIN)
@@ -500,7 +509,7 @@ void Dragon::yell(int cityID)
     if (mMorale > 0.8)
     {
         showTime();
-        cout << HEAD_NAME[mFlag] << ' ' << WARRIOR_NAME[mType] << ' ' << mID << " yelled in city " << cityID << endl;
+        cout << *this << " yelled in city " << cityID << endl;
     }
 }
 
@@ -534,7 +543,7 @@ void City::lionEscape()
         if (mWarriorPtr[i] && mWarriorPtr[i]->getType() == LION && !mWarriorPtr[i]->isLoyal())
         {
             showTime();
-            cout << HEAD_NAME[i] << " lion " << mWarriorPtr[i]->getID() << " ran away" << endl;
+            cout << *mWarriorPtr[i] << " ran away" << endl;
             delete mWarriorPtr[i];
             mWarriorPtr[i] = nullptr;
         }
@@ -633,7 +642,7 @@ void City::fight()
                 if (!mWarriorPtr[i]->isAlive())
                 {
                     showTime();
-                    cout << HEAD_NAME[i] << ' ' << WARRIOR_NAME[mWarriorPtr[i]->getType()] << ' ' << mWarriorPtr[i]->getID() << " was killed in city " << mID << endl;
+                    cout << *mWarriorPtr[i] << " was killed in city " << mID << endl;
                     mWarriorPtr[i ^ 1]->setWarState(WarState::WIN);
                     if (pri == (i ^ 1))
                         mWarriorPtr[i ^ 1]->yell(mID);
@@ -691,7 +700,7 @@ void Command::lionEscape()
     if (mWarriorPtr[mFlag] && mWarriorPtr[mFlag]->getType() == LION && !mWarriorPtr[mFlag]->isLoyal())
     {
         showTime();
-        cout << HEAD_NAME[mFlag] << " lion " << mWarriorPtr[mFlag]->getID() << " ran away" << endl;
+        cout << *mWarriorPtr[mFlag] << " ran away" << endl;
         delete mWarriorPtr[mFlag];
         mWarriorPtr[mFlag] = nullptr;
     }

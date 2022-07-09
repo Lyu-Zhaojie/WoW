@@ -27,7 +27,7 @@ class Warrior
 public:
     Warrior() {}
 
-    Warrior(WarriorType type, int id, int life) : mType{type}, mId{id}, mLife{life} {}
+    Warrior(WarriorType type, int id, int life) : mId{id}, mLife{life}, mType{type} {}
 
     int GetType() { return int(mType); }
 
