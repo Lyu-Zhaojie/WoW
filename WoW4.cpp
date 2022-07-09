@@ -748,19 +748,15 @@ void Command::prize(BasicWarrior *warrior)
 }
 void Command::setPtr()
 {
-    if (tmpWarriorPtr[RED])
+    for (Flag i : {RED, BLUE})
     {
-        mWarriorPtr[RED] = tmpWarriorPtr[RED];
-        tmpWarriorPtr[RED] = nullptr;
-        mWarriorPtr[RED]->moveToCommand();
-        occupied++;
-    }
-    if (tmpWarriorPtr[BLUE])
-    {
-        mWarriorPtr[BLUE] = tmpWarriorPtr[BLUE];
-        tmpWarriorPtr[BLUE] = nullptr;
-        mWarriorPtr[BLUE]->moveToCommand();
-        occupied++;
+        if (tmpWarriorPtr[i])
+        {
+            mWarriorPtr[i] = tmpWarriorPtr[i];
+            tmpWarriorPtr[i] = nullptr;
+            mWarriorPtr[i]->moveToCommand();
+            occupied++;
+        }
     }
 }
 void Move(City &westCity, City &eastCity)
